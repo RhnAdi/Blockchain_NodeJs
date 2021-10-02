@@ -1,77 +1,18 @@
 const express = require('express');
-const crypto = require('crypto');
-const timestamp = require('time-stamp');
 const uuid = require('uuid');
+const Blockchain = require('./Blockchain');
 const app = express();
-const port = 3000;
+const port = process.argv[2];
 
-app.use(express.json()) // for parsing application/json
+// for parsing application/json
+app.use(express.json()) 
+ 
 
-class Blockchain {
-   // Target Kesulitan
-   difficulty_target = '0000';
 
-   chain = [];
-   current_transactions = [];
-   last_block = this.chain.length + 1;
-
-   constructor () {
-      const genesis_hash = this.hash_block('genesis_block');
-      this.append_block(
-         genesis_hash,
-         this.proof_of_work(0, genesis_hash, [])
-      )
-   }
-
-   // Method untuk hash block
-   hash_block (block) {
-      const block_encoded = JSON.stringify(block)
-      return crypto.createHash('sha256').update(block_encoded).digest('hex');
-   }
-
-   // Method Proof-Of-Work
-   proof_of_work (index, hash_of_previus_block, transactions, nonce){
-      nonce = 0;
-      while(this.valid_proof(index, hash_of_previus_block, transactions, nonce) === false){
-         nonce ++;
-      }
-      this.valid_proof(index, hash_of_previus_block, transactions, nonce)
-      return nonce;
-
-   }
-
-   // Method Valid Proof
-   valid_proof (index, hash_of_previus_block, transactions, nonce){
-      const content = encodeURI(`${index}${hash_of_previus_block}${transactions}${nonce}`);
-      const content_hash = crypto.createHash('sha256').update(content).digest('hex');
-      return content_hash.slice(0, 4) === this.difficulty_target;
-   }
-
-   append_block(hash_of_previus_block, nonce){
-      const block = {
-         'index': this.chain.length,
-         'timestamp': timestamp(),
-         'transaction': this.current_transactions,
-         'nonce': nonce,
-         'hash_of_previus_block': hash_of_previus_block,
-      }
-      this.current_transactions = []
-      this.chain.push(block)
-      return block;
-   }
-
-   add_transcation(sender, recipient, amount){
-      this.current_transactions.push({
-         'amount': amount,
-         'recipient': recipient,
-         'sender': sender
-      })
-      return this.chain.length + 1;
-   }
-}
-
+// Initialization
 const myBlockchain = new Blockchain();
 
+// Node Identifier for User
 const node_identifier = uuid.v4().replace('-', '');
 
 app.get('/blockchain', (req, res) => {
@@ -85,11 +26,11 @@ app.get('/mine', (req, res) => {
    const sender = '0';
    const amount = '1';
    myBlockchain.add_transcation(sender, node_identifier, amount);
-   const last_block_hash = myBlockchain.hash_block(myBlockchain.chain.length - 1);
+   const last_block_hash = myBlockchain.hash_block(myBlockchain.chain[myBlockchain.chain.length - 1]);
    const index = myBlockchain.chain.length;
    const nonce = myBlockchain.proof_of_work(index, last_block_hash, myBlockchain.current_transactions);
    const block = myBlockchain.append_block(last_block_hash, nonce);
-   res.status(400).json({
+   res.status(200).json({
       message: "New block is added successfully (Mined).",
       index: block.index,
       hash_of_previus_block: block.hash_of_previus_block,
@@ -108,6 +49,22 @@ app.post('/transactions/new', (req, res) => {
 
    const index = myBlockchain.add_transcation(sender, recipient, amount);
    res.status(201).json({message: `Transaction will be added in block ${index}`});
+})
+
+app.post('/nodes/add_node', (req, res) => {
+   const { nodes } = req.body;
+
+   nodes.map(node => myBlockchain.add_node(node));
+   res.status(201).json({message: "Node added successfully.", nodes: Array.from(myBlockchain.nodes)})
+})
+
+app.get('/nodes/sync', async(req, res) => {
+   const updated = await myBlockchain.update_blockchain();
+   if(updated){
+      res.status(200).json({message: "Blockchain has updated to latest data.", blockchain: myBlockchain.chain});
+   } else {
+      res.status(200).json({message: "Blockchain is latest data.", blockchain: myBlockchain.chain});
+   }
 })
 
 app.listen(port, () => {
