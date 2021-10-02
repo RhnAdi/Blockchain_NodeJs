@@ -127,7 +127,7 @@ class Blockchain {
       this.current_transactions.push({
          'amount': amount,
          'recipient': recipient,
-         'sender': sender
+         'sender': sender,
       })
       return this.chain.length + 1;
    }
