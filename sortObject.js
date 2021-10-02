@@ -1,4 +1,4 @@
-module.exports = function sortObject (object) { 
+module.exports = function sortObject(object) { 
    const sortObject = Object.keys(object).sort().reduce(
       (obj, key) => {
          obj[key] = object[key];

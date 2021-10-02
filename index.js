@@ -35,7 +35,7 @@ app.get('/mine', (req, res) => {
       index: block.index,
       hash_of_previus_block: block.hash_of_previus_block,
       nonce: block.nonce,
-      transaction: block.transaction
+      transaction: block.transaction,
    })
 })
 
